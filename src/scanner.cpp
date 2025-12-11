@@ -12,6 +12,7 @@ class Token {
 public:
     string token_value;
     string token_class;
+    int line_number;
 };
 
 // A global vector of tokens.
@@ -23,13 +24,14 @@ bool multi_decimal_points = false;
 char unexpected_char;
 string multi_digit_numeric_const ="";
 
-//SCANNER FyUNCTION IMPLEMENTATION
+//SCANNER FUNCTION IMPLEMENTATION
 
 //  1-  A helper function to add a new token to the global list
-void addToken(const string& value, const string& type) {
+void addToken(const string& value, const string& type,int linenum) {
     Token newToken;
     newToken.token_value = value;
     newToken.token_class = type;
+    newToken.line_number=linenum;
     tokens.push_back(newToken);
 }
 
@@ -38,7 +40,7 @@ void scan(const string& source_code)
     {
     // A pointer (using an index for safety) to the current character
     int current_char_index = 0;
-
+    int current_line = 1;
     // Predefined lists for keywords, operators, and special characters
     const unordered_set<string> keywords = {
         "auto", "break", "case", "char", "const",
@@ -60,6 +62,9 @@ void scan(const string& source_code)
         // ---------------------------------
         // Check 1: WHITESPACE
         // ---------------------------------
+        if (currentChar == '\n') {
+            current_line++;
+        }
         if (isspace(currentChar)) {
             current_char_index++;
             continue; // Ignore and move to the next character
@@ -80,9 +85,10 @@ void scan(const string& source_code)
                     // Skip characters until a newline is found
                     while (current_char_index < source_code.length() && source_code[current_char_index] != '\n') 
                         {
-                        current_char_index++;
+                            current_line++;
+                            current_char_index++;
                         }
-                    addToken("//" ,"Single-Line Comment");
+                    addToken("//" ,"Single-Line Comment",current_line);
                     continue; // Comment ignored, continue main loop
                     }
                 // Case B: Multi-line comment (/*)
@@ -92,10 +98,15 @@ void scan(const string& source_code)
                     while (current_char_index + 1 < source_code.length() &&
                             !(source_code[current_char_index] == '*' && source_code[current_char_index + 1] == '/'))
                                 {
+                                    if (currentChar == '\n') 
+                                    {
+                                        current_line++;
+                                    }
                                 current_char_index++;
                                 }
+                                
                     current_char_index += 2; // Move past '*/'
-                    addToken("/* .. */" ,"Multi-Line Comment");
+                    addToken("/* .. */" ,"Multi-Line Comment",current_line);
                     continue; // Comment ignored, continue main loop
                 }
                 }
@@ -111,7 +122,7 @@ void scan(const string& source_code)
                 directive += source_code[current_char_index];
                 current_char_index++;
             }
-            addToken(directive, "PREPROCESSOR DIRECTIVE");
+            addToken(directive, "PREPROCESSOR DIRECTIVE",current_line);
             continue;
         }
 
@@ -129,7 +140,7 @@ void scan(const string& source_code)
                 
             if ( multi_char_operators.find(triple_char_op) != multi_char_operators.end())
                         {
-                        addToken(triple_char_op, "OPERATOR");
+                        addToken(triple_char_op, "OPERATOR",current_line);
                         current_char_index += 3;
                         continue;
                         }
@@ -141,7 +152,7 @@ void scan(const string& source_code)
             double_char_op = source_code.substr(current_char_index, 2);
             if ( multi_char_operators.find(double_char_op) != multi_char_operators.end())
                         {
-                        addToken(double_char_op, "OPERATOR");
+                        addToken(double_char_op, "OPERATOR",current_line);
                         current_char_index += 2;
                         continue;
                         }
@@ -153,7 +164,7 @@ void scan(const string& source_code)
             if (single_char_operators.find(currentChar)!= single_char_operators.end())
                     {
                     string currentChar_string (1, currentChar);
-                    addToken(currentChar_string, "OPERATOR");
+                    addToken(currentChar_string, "OPERATOR",current_line);
                     current_char_index ++;
                     continue;
                     }
@@ -161,7 +172,7 @@ void scan(const string& source_code)
                 else if ((special_chars.find(currentChar)!= special_chars.end()))
                     {
                     string currentChar_string (1, currentChar);
-                    addToken(currentChar_string, "SPECIAL CHARACTER");
+                    addToken(currentChar_string, "SPECIAL CHARACTER",current_line);
                     current_char_index ++;
                     continue;
                     }
@@ -181,9 +192,9 @@ void scan(const string& source_code)
             
             // Compare the word with our keywords list
             if (keywords.count(word)) {
-                addToken(word, "KEYWORD");
+                addToken(word, "KEYWORD",current_line);
             } else {
-                addToken(word, "IDENTIFIER");
+                addToken(word, "IDENTIFIER",current_line);
             }
             continue;
         }
@@ -273,7 +284,7 @@ void scan(const string& source_code)
                                     current_char_index++;
                                 }
                                 
-                                addToken(number, "NUMERIC CONSTANT");
+                                addToken(number, "NUMERIC CONSTANT",current_line);
                                 number={};
                                 continue;       
                     
@@ -286,7 +297,7 @@ void scan(const string& source_code)
             add_to_tokens:
             if( !has_radix_point )
             {
-                addToken(number, "NUMERIC CONSTANT");
+                addToken(number, "NUMERIC CONSTANT",current_line);
                 
             }
             continue;
@@ -296,7 +307,7 @@ void scan(const string& source_code)
         // ---------------------------------
         // Check 7: UNEXPECTED CHARACTERS (ERROR)
         // ---------------------------------
-        /* addToken(string(1, currentChar), "ERROR: UNEXPECTED CHARACTER");
+        /* addToken(string(1, currentChar,current_line), "ERROR: UNEXPECTED CHARACTER");
         cerr << "Error: Unexpected character '" << currentChar << "' found." << endl;
         current_char_index++; // Move past the error character
         */
@@ -367,7 +378,7 @@ int main() {
     // Write the tokens to the file in the specified format
         for (const auto& token : tokens)
             {
-            output_file << "<" << token.token_class << ", " << token.token_value << ">" << endl;
+            output_file << "<" << token.token_class << ", " << token.token_value << ", " << token.line_number <<">" << endl;
             }
         output_file.close();
 
