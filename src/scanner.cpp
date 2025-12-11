@@ -20,6 +20,8 @@ vector<Token> tokens;
 // A boolean variable to indicate whether or not an unexpected character error occurs.
 bool unexpected_char_error = false;
 bool multi_decimal_points = false;
+char unexpected_char;
+string multi_digit_numeric_const ="";
 
 //SCANNER FyUNCTION IMPLEMENTATION
 
@@ -188,20 +190,50 @@ void scan(const string& source_code)
 
         // ---------------------------------
         // Check 6: NUMERIC CONSTANTS
+        /*
+            WE HAVE 2 SCENARIOS ON ENCOUNTERING :
+            MULTIPLE DECIMAL POINTS WITHIN THE SAME NUMBER 
+            
+            -->FIRST ONE IS TO CONSIDER THE WHOLE NUMERIC CONSTANT WITH
+            MORE THAN ONE DECIMAL POINT (i.e., 0.2222.333 ) 
+            AN RECOGNIZED (UNEXPECTED / DISALLOWED) TOKEN 
+            
+            --> SECOND ONE (ASSUMING ANY GENERAL CASE 
+            WITH ANY NO. OF DECIMAL POINTS FOUND)  IS TO 
+            
+            CONSIDER THE WHOLE PART 
+            BEFORE THE SECOND DECIMAL POINT AS A TOKEN OF NUMERIC CONSTANT CLASS,
+            STARTING FROM THE SECOND DECIMAL POINT TILL LAST DIGIT BEFORE THE THIRD ONE
+            AS A TOKEN OF NUMERIC CONSTANT CLASS, 
+            STARTING FROM THE THIRD DECIMAL POINT TILL LAST DIGIT BEFORE THE FOURTH ONE
+            AS A TOKEN OF NUMERIC CONSTANT CLASS, AND SO ON...
+
+        */
         // ---------------------------------
-        if (isdigit(currentChar) || (currentChar == '.' && isdigit(source_code[current_char_index + 1])))
+
+        // SCENARIO #1
+/*
+            if (isdigit(currentChar) || (currentChar == '.' && isdigit(source_code[current_char_index + 1])))
             {
             string number;
             bool hasDecimal = false;
+            int save_start_index = current_char_index;
             while (current_char_index < source_code.length() && (isdigit(source_code[current_char_index]) || source_code[current_char_index] == '.')) 
                 {
+                    
                 if (source_code[current_char_index] == '.')
                     {
                         if (hasDecimal) 
                         {
                             
                             multi_decimal_points= true;
-                            break; // Break if a second decimal point is found
+                            current_char_index=save_start_index;
+                            while(source_code[current_char_index] =='.'|| isdigit(source_code[current_char_index]))
+                                {
+                                    multi_digit_numeric_const =+source_code[current_char_index];
+                                    current_char_index++;
+                                }
+                            break; // Break if the numeric constant constains more than one decimal point
                         }
                         hasDecimal = true;
                     }
@@ -213,6 +245,54 @@ void scan(const string& source_code)
             continue;
         }
         
+*/
+
+        //-------------------------------
+
+        //SCENARIO #2
+        
+
+
+        //-------------------------------------
+        if (isdigit(currentChar) || (currentChar == '.' && isdigit(source_code[current_char_index + 1])))
+            {
+            string number;
+            bool has_radix_point = false;
+            while (current_char_index < source_code.length() && (isdigit(source_code[current_char_index]) || source_code[current_char_index] == '.')) 
+                {
+                    
+                    if (source_code[current_char_index] == '.')
+                    
+                    {
+                        has_radix_point=true;
+                        number += source_code[current_char_index];
+                        current_char_index++;
+                        while (current_char_index < source_code.length() && (isdigit(source_code[current_char_index])))
+                                {
+                                    number += source_code[current_char_index];
+                                    current_char_index++;
+                                }
+                                
+                                addToken(number, "NUMERIC CONSTANT");
+                                number={};
+                                continue;       
+                    
+                    }
+
+                    number += source_code[current_char_index];
+                    current_char_index++;
+                }
+            
+            add_to_tokens:
+            if( !has_radix_point )
+            {
+                addToken(number, "NUMERIC CONSTANT");
+                
+            }
+            continue;
+            }
+        //------------------------------------
+
         // ---------------------------------
         // Check 7: UNEXPECTED CHARACTERS (ERROR)
         // ---------------------------------
@@ -220,6 +300,7 @@ void scan(const string& source_code)
         cerr << "Error: Unexpected character '" << currentChar << "' found." << endl;
         current_char_index++; // Move past the error character
         */
+        unexpected_char= source_code[current_char_index]; 
         unexpected_char_error= true;
         break;
     }
@@ -259,12 +340,13 @@ int main() {
         //1 - unexpected char
         if (unexpected_char_error)
             { 
-                cout<<"ERROR : AN UNEXPECTED CHARACTER IS FOUND!!"<<endl<<
+                cout<<"ERROR : AN UNEXPECTED CHARACTER '"<<unexpected_char<<"'IS FOUND!!"<<endl<<
                 "click enter to end the program";
             cin.get();
                 return 1;
             }
         //2- numeric constant with more than one decimal point
+        /*
         if (multi_decimal_points)
             { 
                 cout<<"ERROR : NUMERIC CONSTANT WITH MORE THAN ONE DECIMAL POINT IS FOUND!!"<<endl<<
@@ -272,6 +354,7 @@ int main() {
             cin.get();
                 return 1;
             }
+        */
     // Finally ALL GOES FINE , our scanner should output a .txt file. 
     //For now, we'll name it "tokens.txt" 
         ofstream output_file("tokens.txt");
@@ -288,8 +371,8 @@ int main() {
             }
         output_file.close();
 
-        cout << "Scanning complete."<<endl<<" Output written to tokensat.txt" <<endl<<
-        "Kindly note that the output (the . txt file) is ocated at the same directory as the .c file you previously provided." 
+        cout << "Scanning complete."<<endl<<" Output written to tokens.txt" <<endl<<
+        "Kindly note that the output (the .txt file) is located at the same directory as this C++ programm." 
         << endl<< "click enter to end the program";
                 
         cin.get();
