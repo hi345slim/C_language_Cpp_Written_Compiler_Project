@@ -1,8 +1,6 @@
 # C-Language Compiler Frontend: Scanner & Parser
 
-<p align="center">
-  <img src="https://user-images.githubusercontent.com/1021432/194519989-137b0185-3c48-4226-8968-3e5b303498b3.png" alt="Compiler Icon" width="150">
-</p>
+
 
 <p align="center">
   <strong>A modular, two-phase compiler frontend for a significant subset of the C language.</strong>
@@ -71,3 +69,145 @@ g++ scanner.cpp -std=c++11 -o scanner
 
 # 2. Compile the parser
 g++ C_lange_Parser_in_Cpp.cpp -std=c++11 -o parser
+```
+
+### **Workflow**
+
+The toolchain operates in a sequential, two-step process.
+
+#### **Step 1: Generate Tokens with the Scanner**
+
+Run the scanner executable. It will prompt you for the path to your `.c` source file.
+
+```sh
+./scanner
+```
+
+This will produce a `tokens.txt` file in the current directory.
+
+#### **Step 2: Validate Syntax with the Parser**
+
+Run the parser executable. It will automatically find and process the `tokens.txt` file.
+
+```sh
+./parser
+```
+
+The parser will output its analysis to the console, reporting either a success message and the AST, or the first syntax error it encounters.
+
+## **4. The Formal Grammar**
+
+The parser is built to validate the following formal grammar, which covers a substantial and functional subset of the C language. The grammar is designed to be parsed by a predictive LL(k) parser.
+
+**Notation:** `*` = 0 or more, `?` = optional, `|` = OR, terminals are in UPPERCASE or 'single quotes'.
+
+```ebnf
+### Top-Level Structure
+
+program                 ->  top_level_declaration* EOF
+
+top_level_declaration   ->  function_definition
+                        |   variable_declaration
+                        |   function_prototype
+                        |   PREPROCESSOR_DIRECTIVE
+
+
+### Functions
+
+function_definition     ->  type_specifier IDENTIFIER '(' parameter_list? ')' block_statement
+function_prototype      ->  type_specifier IDENTIFIER '(' parameter_list? ')' ';'
+
+parameter_list          ->  parameter ( ',' parameter )*
+parameter               ->  type_specifier IDENTIFIER
+
+
+### Statements
+
+statement               ->  variable_declaration
+                        |   expression_statement
+                        |   if_statement
+                        |   for_statement
+                        |   block_statement
+                        |   return_statement
+                        |   ';'                   // Empty statement
+
+statement_list          ->  statement*
+
+block_statement         ->  '{' statement_list '}'
+
+if_statement            ->  'if' '(' expression ')' statement ( 'else' statement )?
+
+for_statement           ->  'for' '(' for_initializer for_condition for_increment ')' statement
+for_initializer         ->  variable_declaration | expression_statement
+for_condition           ->  expression? ';'
+for_increment           ->  expression?
+
+return_statement        ->  'return' expression? ';'
+
+
+### Declarations
+
+variable_declaration    ->  'const'? type_specifier declarator (',' declarator)* ';'
+declarator              ->  IDENTIFIER ('=' expression)?
+
+
+### Expressions (with Operator Precedence)
+
+expression_statement    ->  expression ';'
+
+expression              ->  assignment
+assignment              ->  equality ( '=' assignment )?
+equality                ->  relational ( ( '==' | '!=' ) relational )*
+relational              ->  additive ( ( '<' | '>' | '<=' | '>=' ) additive )*
+additive                ->  multiplicative ( ( '+' | '-' ) multiplicative )*
+multiplicative          ->  primary ( ( '*' | '/' ) primary )*
+primary                 ->  IDENTIFIER
+                        |   NUMERIC_CONSTANT
+                        |   '(' expression ')'
+
+
+### Helper Rules
+
+type_specifier          ->  'int' | 'float' | 'char' | 'void'
+```
+
+## **5. Output: The Abstract Syntax Tree**
+
+Upon successfully parsing a valid C file, the parser will render a complete Abstract Syntax Tree. This visualization provides a clear, hierarchical view of the program's structure, confirming that every statement and expression has been correctly understood.
+
+**Example Output for a complex function:**
+
+```
+--- Abstract Syntax Tree ---
+└── Program () [Line: 5]
+    ├── PreprocessorDirective (#include <stdio.h>) [Line: 5]
+    └── FunctionDefinition (main) [Line: 6]
+        ├── TypeSpecifier (int) [Line: 6]
+        └── BlockStatement ({}) [Line: 6]
+            ├── VariableDeclarationStatement () [Line: 7]
+            │   ├── TypeSpecifier (int) [Line: 7]
+            │   ├── Declarator (x) [Line: 7]
+            │   └── Declarator (y) [Line: 7]
+            ├── IfStatement (if) [Line: 41]
+            │   ├── BinaryExpression (==) [Line: 41]
+            │   │   ├── Identifier (x) [Line: 41]
+            │   │   └── Constant (42) [Line: 41]
+            │   ├── BlockStatement ({}) [Line: 41]
+            │   │   ├── ExpressionStatement () [Line: 43]
+            │   │   │   └── AssignmentExpression (=) [Line: 43]
+            │   │   │       ├── Identifier (x) [Line: 43]
+            │   │   │       └── BinaryExpression (-) [Line: 43]
+            │   │   │           ├── Identifier (x) [Line: 43]
+            │   │   │           └── Constant (3) [Line: 43]
+            │   │   └── VariableDeclarationStatement () [Line: 44]
+            │   │       ├── TypeSpecifier (int) [Line: 44]
+            │   │       └── Declarator (_xyzw) [Line: 44]
+            │   └── BlockStatement ({}) [Line: 45]
+            │       └── ExpressionStatement () [Line: 46]
+            │           └── AssignmentExpression (=) [Line: 46]
+            │               ├── Identifier (y) [Line: 46]
+            │               └── Constant (3.1) [Line: 46]
+            └── ReturnStatement (return) [Line: 66]
+                └── Constant (0) [Line: 66]
+--------------------------
+```
