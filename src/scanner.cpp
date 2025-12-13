@@ -14,7 +14,7 @@ public:
     string token_class;
     int line_number;
 };
-
+int current_line=0;
 // A global vector of tokens.
 vector<Token> tokens;
 
@@ -22,6 +22,7 @@ vector<Token> tokens;
 bool unexpected_char_error = false;
 bool multi_decimal_points = false;
 char unexpected_char;
+bool unterminated_comment_error = false;
 string multi_digit_numeric_const ="";
 
 //SCANNER FUNCTION IMPLEMENTATION
@@ -40,7 +41,7 @@ void scan(const string& source_code)
     {
     // A pointer (using an index for safety) to the current character
     int current_char_index = 0;
-    int current_line = 1;
+    //int current_line = 1; //we've it a global variaible 
     // Predefined lists for keywords, operators, and special characters
     const unordered_set<string> keywords = {
         "auto", "break", "case", "char", "const",
@@ -53,23 +54,30 @@ void scan(const string& source_code)
     const unordered_set<char> single_char_operators = {'+', '-', '*', '/', '=', '<', '>','%','^', '|' , '&','~', '!'};
     const unordered_set<string> multi_char_operators = {"++", "--","<<",">>",  "==", "&&", "||",  "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=", "!=", ">=", "<=","pow"};
     const unordered_set<char> special_chars = {'(', ')', '{', '}', ';', ',', '#',  '.', '[' , ']'};
-
+        if(source_code.empty())
+                {
+                current_line=0;
+                return;
+                }else current_line=1;
     // Loop through the entire source code string
     while (current_char_index < source_code.length())
         {
         char currentChar = source_code[current_char_index];
-
+        
         // ---------------------------------
         // Check 1: WHITESPACE
         // ---------------------------------
+        
         if (currentChar == '\n') {
             current_line++;
-        }
-        if (isspace(currentChar)) {
             current_char_index++;
-            continue; // Ignore and move to the next character
+            continue;
         }
-
+        else if (isspace(currentChar)) {
+            current_char_index++;
+            continue;
+        }
+         // Ignore and move to the next character
         // ---------------------------------
         // Check 2: COMMENTS (starting with /)
         // ---------------------------------
@@ -82,31 +90,44 @@ void scan(const string& source_code)
                 // Case A: Single-line comment (//)
                 if (nextChar == '/') 
                     {
+                    // CAPTURE the line number where the comment starts.
+                    int start_line = current_line;
+                    
+                    // Advance the pointer past the end of the line.
                     // Skip characters until a newline is found
                     while (current_char_index < source_code.length() && source_code[current_char_index] != '\n') 
                         {
-                            current_line++;
+                           
                             current_char_index++;
-                        }
-                    addToken("//" ,"Single-Line Comment",current_line);
+                        } 
+                        addToken("//" ,"Single-Line Comment",start_line);
+                        //current_line++;--> handles in the whitespaces 
+                    
                     continue; // Comment ignored, continue main loop
                     }
                 // Case B: Multi-line comment (/*)
                 else if (nextChar == '*') 
-                {
-                    current_char_index += 2; // Move past '/*'
+                {   
+                     // CAPTURE the line number where the comment starts.
+                    int start_line = current_line;
+                    current_char_index +=2; // Move past '/*'
                     while (current_char_index + 1 < source_code.length() &&
                             !(source_code[current_char_index] == '*' && source_code[current_char_index + 1] == '/'))
                                 {
-                                    if (currentChar == '\n') 
+                                    if (source_code[current_char_index] == '\n') 
                                     {
                                         current_line++;
                                     }
                                 current_char_index++;
                                 }
-                                
+                                  // Check if we exited the loop because of EOF, which is an error.
+                    if (current_char_index + 1 >= source_code.length()) {
+                        // SET THE NEW, SPECIFIC ERROR FLAG
+        unterminated_comment_error = true;
+        break; // Exit the main scan loop.
+                    }            
                     current_char_index += 2; // Move past '*/'
-                    addToken("/* .. */" ,"Multi-Line Comment",current_line);
+                    addToken("/* .. */" ,"Multi-Line Comment",start_line);
                     continue; // Comment ignored, continue main loop
                 }
                 }
@@ -172,7 +193,15 @@ void scan(const string& source_code)
                 else if ((special_chars.find(currentChar)!= special_chars.end()))
                     {
                     string currentChar_string (1, currentChar);
+                    
                     addToken(currentChar_string, "SPECIAL CHARACTER",current_line);
+                    if (currentChar=='\'' && isalnum(source_code[current_char_index+1]) && !isalnum(source_code[current_char_index+2] ) && source_code[current_char_index+2] != '_')
+                        {
+                            string char_literal;
+                            char_literal +=source_code[current_char_index+1];
+                            addToken(char_literal,"CHAR_LITERAL",current_line);
+                            current_char_index ++;
+                        }
                     current_char_index ++;
                     continue;
                     }
@@ -346,12 +375,25 @@ int main() {
         input_file.close();
     // Scan the code to populate the global 'tokens' vector
         scan(source_code);
+        if (source_code.empty() )
+       {
+        cout<<endl<< "your source C-program is empty.. no code to scan"<<endl;
+        return 1;
+       }
+      // Add this new error check
+if (unterminated_comment_error) {
+    cout << "ERROR: Unterminated multi-line comment at end of file!" << endl;
+    cout << "click enter to end the program";
+    cin.get();
+    return 1;
+}
+
 
     // check that  there're no errors that prevents us from having a suitable output file 
         //1 - unexpected char
         if (unexpected_char_error)
             { 
-                cout<<"ERROR : AN UNEXPECTED CHARACTER '"<<unexpected_char<<"'IS FOUND!!"<<endl<<
+                cout<<"ERROR : AN UNEXPECTED CHARACTER '"<<unexpected_char<<"'IS FOUND!! at line #"<<current_line<<endl<<
                 "click enter to end the program";
             cin.get();
                 return 1;
@@ -366,6 +408,7 @@ int main() {
                 return 1;
             }
         */
+       
     // Finally ALL GOES FINE , our scanner should output a .txt file. 
     //For now, we'll name it "tokens.txt" 
         ofstream output_file("tokens.txt");
@@ -384,7 +427,7 @@ int main() {
 
         cout << "Scanning complete."<<endl<<" Output written to tokens.txt" <<endl<<
         "Kindly note that the output (the .txt file) is located at the same directory as this C++ programm." 
-        << endl<< "click enter to end the program";
+        <<endl<<"the size of your source C-program in lines is : "<<current_line<<"  line(s)"<<endl<< "All done .. click enter to end the program"<<endl;
                 
         cin.get();
 

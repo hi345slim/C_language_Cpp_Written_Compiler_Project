@@ -8,7 +8,7 @@
    Target: subset of C99 — integer/floating/string/char literals, basic arithmetic,
    function definitions, declarations, preprocessor directives, comments.
 */
- 
+
 /* Target: subset of C99 (basic features) */
 
 #include <stdio.h>
